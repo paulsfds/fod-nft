@@ -1,5 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Button, Form, Image, InputGroup } from 'react-bootstrap';
+import { useContractWrite } from 'wagmi'
+
+import Minter from '../../src/artifacts/contracts/Minter.json';
 
 import classes from './Auction.module.css';
 
@@ -7,20 +10,55 @@ interface AuctionProps {
 }
 
 const Auction: React.FC<AuctionProps> = props => {
-    const [textPrompt, setTextPrompt] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isLoaded, setIsLoaded] = useState<boolean>(false);
     const [isError, setIsError] = useState<boolean>(false);
-    const [imageUuid, setImageUuid] = useState<string>("");
+    const imageRef = useRef<HTMLImageElement>(null);
+    let retries = 0;
+    let textPrompt = "";
 
-    const setup = async() => {
+    const { data: contract, isError: isContractError, isLoading: isContractLoading, write } = useContractWrite(
+        {
+            addressOrName: '0xecb504d39723b0be0e3a9aa33d646642d1051ee1',
+            contractInterface: Minter,
+        },
+        'feed',
+    )
+
+    const setup = async () => {
         let result = await fetchImage();
-        // while (result == "") {
-        //     await wait(1000);
-        //     result = await fetchImage();
-        // }
-        setImageUuid(result);
-        console.log(imageUuid);
+        getImage("http://192.168.0.147:8080/https://fod-image.s3.us-west-1.amazonaws.com/" + result + ".jpg");
+    };
+
+    const getImage = (imgurl: string) => {
+        fetch(imgurl)
+            .then(async(res) => {
+                if (res.ok) {
+                    return res.blob();
+                } else {
+                    console.log("retrying to d/l image");
+                    if (retries > 5) {
+                        console.log("done retrying");
+                        setIsLoading(false);
+                        setIsError(true);
+                        return null;
+                    }
+                    await wait(3000);
+                    getImage(imgurl);
+                    retries += 1; 
+                }
+            }) // Gets the response and returns it as a blob
+            .then(blob => {
+                if (!blob) {
+                    return;
+                }
+                let objectURL = URL.createObjectURL(blob);
+                setIsLoading(false);
+                setIsLoaded(true);
+                if (imageRef) {
+                    imageRef.current!.src = objectURL;
+                }
+            });
     };
 
     function wait(ms = 1000) {
@@ -30,22 +68,22 @@ const Auction: React.FC<AuctionProps> = props => {
     }
 
     const fetchImage = async () => {
-        const response = await fetch("http://204.236.167.77:8000/generate", {mode: 'no-cors'});
+        const response = await fetch("http://192.168.0.147:8080/http://204.236.167.77:8000/generate?prompt=" + textPrompt);
         const uuid = await response.text();
-        console.log("fetchImage");
-        console.log(response);
-        console.log(uuid);
         return uuid;
     };
 
     const onButtonClick = async () => {
         console.log(textPrompt);
+        setIsError(false);
+        setIsLoaded(false);
         setIsLoading(true);
-        setup();
+        await setup();
+        // write();
     };
 
     const onFormChange = (event) => {
-        setTextPrompt(event.target.value);
+        textPrompt = event.target.value;
     };
 
     return (
@@ -74,11 +112,10 @@ const Auction: React.FC<AuctionProps> = props => {
                 {isError && <div>
                     Error...womp womp womp
                 </div>}
-                {isLoaded &&
-                    <Image
-                        src={"https://media.discordapp.net/attachments/960284006581149699/990373806923186288/threedudescoding.png"}
-                        fluid
-                    />}
+                <Image
+                    ref={imageRef}
+                    fluid
+                />
             </div>
         </div>
     );
