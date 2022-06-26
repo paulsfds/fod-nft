@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button, Form, Image, InputGroup } from 'react-bootstrap';
 
 import classes from './Auction.module.css';
@@ -10,13 +10,38 @@ const Auction: React.FC<AuctionProps> = props => {
     const [textPrompt, setTextPrompt] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isLoaded, setIsLoaded] = useState<boolean>(false);
+    const [isError, setIsError] = useState<boolean>(false);
+    const [imageUuid, setImageUuid] = useState<string>("");
+
+    const setup = async() => {
+        let result = await fetchImage();
+        // while (result == "") {
+        //     await wait(1000);
+        //     result = await fetchImage();
+        // }
+        setImageUuid(result);
+        console.log(imageUuid);
+    };
+
+    function wait(ms = 1000) {
+        return new Promise(resolve => {
+            setTimeout(resolve, ms);
+        });
+    }
+
+    const fetchImage = async () => {
+        const response = await fetch("http://204.236.167.77:8000/generate", {mode: 'no-cors'});
+        const uuid = await response.text();
+        console.log("fetchImage");
+        console.log(response);
+        console.log(uuid);
+        return uuid;
+    };
 
     const onButtonClick = async () => {
         console.log(textPrompt);
         setIsLoading(true);
-        await new Promise(f => setTimeout(f, 1000));
-        setIsLoading(false);
-        setIsLoaded(true);
+        setup();
     };
 
     const onFormChange = (event) => {
@@ -45,6 +70,9 @@ const Auction: React.FC<AuctionProps> = props => {
                 </InputGroup>
                 {isLoading && <div>
                     Loading...
+                </div>}
+                {isError && <div>
+                    Error...womp womp womp
                 </div>}
                 {isLoaded &&
                     <Image
