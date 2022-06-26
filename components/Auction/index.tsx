@@ -82,7 +82,7 @@ const Auction: React.FC<AuctionProps> = props => {
         // write();
     };
 
-    const onFormChange = (event) => {
+    const onFormChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         textPrompt = event.target.value;
     };
 
