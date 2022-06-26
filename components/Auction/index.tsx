@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Button, Form, Image, InputGroup } from 'react-bootstrap';
 import { useAccount, useContractWrite } from 'wagmi'
+import Parser from 'rss-parser';
 
 import Minter from '../../src/artifacts/contracts/Minter.json';
 
@@ -44,7 +45,7 @@ const Auction: React.FC<AuctionProps> = props => {
     const getImage = (imgurl: string) => {
         console.log(imgurl);
         fetch(imgurl)
-            .then(async(res) => {
+            .then(async (res) => {
                 if (res.ok) {
                     return res.blob();
                 } else {
@@ -57,7 +58,7 @@ const Auction: React.FC<AuctionProps> = props => {
                     }
                     await wait(3000);
                     getImage(imgurl);
-                    retries += 1; 
+                    retries += 1;
                 }
             }) // Gets the response and returns it as a blob
             .then(blob => {
@@ -91,7 +92,19 @@ const Auction: React.FC<AuctionProps> = props => {
         setIsLoaded(false);
         setIsLoading(true);
         await setup();
-        // write();
+    };
+
+    const onNYTButtonClick = async () => {
+        let parser = new Parser();
+
+        let title = await (async () => {
+            let feed = await parser.parseURL('https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml');
+            if (feed.items.length > 0) {
+                let randomIndex = Math.floor(Math.random() * feed.items.length);
+                return feed.items[randomIndex].title;
+            }
+        })();
+        setTextPrompt(title ? title : "");
     };
 
     const onFormChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,13 +122,21 @@ const Auction: React.FC<AuctionProps> = props => {
                         aria-label="e.g. 3 dudes coding"
                         aria-describedby="basic-addon1"
                         onChange={onFormChange}
+                        value={textPrompt}
                     />
+                    <Button
+                        variant="outline-secondary"
+                        id="button-addon2"
+                        onClick={onNYTButtonClick}
+                    >
+                        Grab NYTimes Headline
+                    </Button>
                     <Button
                         variant="outline-secondary"
                         id="button-addon2"
                         onClick={onButtonClick}
                     >
-                        Mint it!
+                        Generate it!
                     </Button>
                 </InputGroup>
                 {isLoading && <div>
