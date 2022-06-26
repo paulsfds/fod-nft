@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Button, Form, Image, InputGroup } from 'react-bootstrap';
-import { useContractWrite } from 'wagmi'
+import { useAccount, useContractWrite } from 'wagmi'
 
 import Minter from '../../src/artifacts/contracts/Minter.json';
 
@@ -10,34 +10,46 @@ interface AuctionProps {
 }
 
 const Auction: React.FC<AuctionProps> = props => {
+    const { data: account } = useAccount();
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isLoaded, setIsLoaded] = useState<boolean>(false);
     const [isError, setIsError] = useState<boolean>(false);
+    const [result, setResult] = useState<string>('');
     const imageRef = useRef<HTMLImageElement>(null);
     let retries = 0;
-    let textPrompt = "";
+    const [textPrompt, setTextPrompt] = useState('');
 
-    const { data: contract, isError: isContractError, isLoading: isContractLoading, write } = useContractWrite(
+    let imgurl = "https://dy713ty38xcg8.cloudfront.net/" + result + ".json"
+    const { write } = useContractWrite(
         {
-            addressOrName: '0xecb504d39723b0be0e3a9aa33d646642d1051ee1',
+            addressOrName: '0x648B74F841720B922d9B7E7D196D5758bfdb62a4',
             contractInterface: Minter,
         },
-        'feed',
+        'mintNFT',
+        {
+            args: [
+                account?.address,
+                imgurl,
+            ]
+        }
     )
 
     const setup = async () => {
         let result = await fetchImage();
-        getImage("http://192.168.0.147:8080/https://fod-image.s3.us-west-1.amazonaws.com/" + result + ".jpg");
+        let imgurl = "https://dy713ty38xcg8.cloudfront.net/" + result + ".jpg";
+        getImage(imgurl);
+        setResult(result);
     };
 
     const getImage = (imgurl: string) => {
+        console.log(imgurl);
         fetch(imgurl)
             .then(async(res) => {
                 if (res.ok) {
                     return res.blob();
                 } else {
                     console.log("retrying to d/l image");
-                    if (retries > 5) {
+                    if (retries > 100) {
                         console.log("done retrying");
                         setIsLoading(false);
                         setIsError(true);
@@ -68,7 +80,7 @@ const Auction: React.FC<AuctionProps> = props => {
     }
 
     const fetchImage = async () => {
-        const response = await fetch("http://192.168.0.147:8080/http://204.236.167.77:8000/generate?prompt=" + textPrompt);
+        const response = await fetch("http://204.236.167.77:8000/generate?prompt=" + (textPrompt || "3 dudes coding"));
         const uuid = await response.text();
         return uuid;
     };
@@ -83,7 +95,7 @@ const Auction: React.FC<AuctionProps> = props => {
     };
 
     const onFormChange = (event) => {
-        textPrompt = event.target.value;
+        setTextPrompt(event.target.value);
     };
 
     return (
@@ -116,6 +128,15 @@ const Auction: React.FC<AuctionProps> = props => {
                     ref={imageRef}
                     fluid
                 />
+                {result && (
+                    <Button
+                        variant="outline-secondary"
+                        id="button-addon2"
+                        onClick={() => write()}
+                    >
+                        Create my NFT!!
+                    </Button>
+                )}
             </div>
         </div>
     );
